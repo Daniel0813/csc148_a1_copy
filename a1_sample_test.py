@@ -22,9 +22,7 @@ any changes, are expressly prohibited.
 All of the files in this directory and all subdirectories are:
 Copyright (c) University of Toronto
 """
-from datetime import date
-from io import StringIO
-from a1 import *
+from csc148.assignments.a1.a1 import *
 
 # A string representing a simple 4 by 4 game board.
 # We use this in one of the tests below. You can use it in your own testing, but
