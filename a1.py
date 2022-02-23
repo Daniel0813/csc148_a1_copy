@@ -73,6 +73,7 @@ class GameBoard:
     #   the player of the game
     # TODO Task #1 add any other private attribute(s) you need to keep track
     #  of the Characters on this board.
+    _tiles: dict[Character, (int, int)]
 
     ended: bool
     turns: int
@@ -104,6 +105,7 @@ class GameBoard:
 
         self._player = None
         # TODO Task #1 initialize any other private attributes you added.
+        self._tiles = {}
 
     def place_character(self, c: Character) -> None:
         """Record that character <c> is on this board.
@@ -129,6 +131,8 @@ class GameBoard:
         True
         """
         # TODO Task #1
+        coord = (c.x, c.y)
+        self._tiles[c] = coord
 
     def at(self, x: int, y: int) -> List[Character]:
         """Return the characters at tile (x, y).
@@ -152,6 +156,12 @@ class GameBoard:
         True
         """
         # TODO Task #1
+        characters = []
+        coord = (x, y)
+        for c in self._tiles:
+            if self._tiles[c] == coord:
+                characters.append(coord)
+        return characters
 
     def to_grid(self) -> List[List[chr]]:
         """
@@ -176,6 +186,29 @@ class GameBoard:
         [['P', '-', '-'], ['-', 'R', 'C']]
         """
         # TODO Task #1
+        output = []
+        for i in range(self.height):
+            col = []
+            for j in range(self.width):
+                self.assign_character(col, i, j)
+            output.append(col)
+        return output
+
+    def assign_character(self, col: List, i: int, j: int) -> None:
+        for c in self._tiles:
+            if self._tiles[c] == (i, j): # if there is something on (i, j)
+                if c is SmartRaccoon:
+                    col.append(c.get_char())
+                elif c is Racoon:
+                    col.append('R')
+                elif c is Player:
+                    col.append('P')
+                elif c is GarbageCan:
+                    col.append(c.get_char()) # returns closed or open
+                elif c is RecyclingBin:
+                    col.append('B')
+            else:
+                col.append('_') # empty grid
 
     def __str__(self) -> str:
         """
@@ -197,6 +230,12 @@ class GameBoard:
         'P--\\n-RO'
         """
         # TODO Task #1
+        output = ''
+        for i in range(self.height):
+            for j in range(self.width):
+                output += self.to_grid[i][j]
+            output += '\n'
+        return output
 
     def setup_from_grid(self, grid: str) -> None:
         """
