@@ -73,7 +73,6 @@ class GameBoard:
     #   the player of the game
     # TODO Task #1 add any other private attribute(s) you need to keep track
     #  of the Characters on this board.
-    # starter
 
     ended: bool
     turns: int
