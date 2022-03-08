@@ -73,7 +73,7 @@ class GameBoard:
     #   the player of the game
     # TODO Task #1 add any other private attribute(s) you need to keep track
     #  of the Characters on this board.
-    _tiles: dict[Character, (int, int)]
+    _characters: dict[Character, (int, int)]
 
     ended: bool
     turns: int
@@ -105,7 +105,7 @@ class GameBoard:
 
         self._player = None
         # TODO Task #1 initialize any other private attributes you added.
-        self._tiles = {}
+        self._characters = {}
 
     def place_character(self, c: Character) -> None:
         """Record that character <c> is on this board.
@@ -132,7 +132,7 @@ class GameBoard:
         """
         # TODO Task #1
         coord = (c.x, c.y)
-        self._tiles[c] = coord
+        self._characters[c] = coord
 
     def at(self, x: int, y: int) -> List[Character]:
         """Return the characters at tile (x, y).
@@ -154,14 +154,19 @@ class GameBoard:
         >>> p = Player(b, 0, 1)
         >>> b.at(0, 1)[0] == p
         True
+        >>> g = GarbageCan(b, 1, 1, False)
+        >>> b.at(1, 1)[1] == g
+        True
+        >>> b.at(2, 2)
+        []
         """
         # TODO Task #1
-        characters = []
+        output = []
         coord = (x, y)
-        for c in self._tiles:
-            if self._tiles[c] == coord:
-                characters.append(coord)
-        return characters
+        for c in self._characters:
+            if self._characters[c] == coord:
+                output.append(c)
+        return output
 
     def to_grid(self) -> List[List[chr]]:
         """
@@ -190,17 +195,23 @@ class GameBoard:
         for i in range(self.height):
             col = []
             for j in range(self.width):
-                self.assign_character(col, i, j)
+                self._assign_character(col, i, j)
             output.append(col)
         return output
 
-    def assign_character(self, col: List, i: int, j: int) -> None:
-        """Helper method for to_grid """
-        for c in self._tiles:
-            if self._tiles[c] == (i, j):  # if there is something on (i, j)
-                col.append(c.get_char())
+    def _assign_character(self, col: List, i: int, j: int) -> None:
+        """Helper method for to_grid which appends to list object col
+        """
+        if self.at(i, j) == []:
+            col.append('-')
+        elif len(self.at(i, j)) == 2:
+            # only case of raccoon inside garbage can
+            if isinstance(self.at(i, j)[1], GarbageCan):
+                col.append(self.at(i, j)[1].get_char())
             else:
-                col.append('_')  # empty grid
+                col.append(self.at(i, j)[0].get_char())
+        else:
+            col.append(self.at(i, j)[0].get_char())
 
     def __str__(self) -> str:
         """
@@ -225,8 +236,9 @@ class GameBoard:
         output = ''
         for i in range(self.height):
             for j in range(self.width):
-                output += self.to_grid[i][j]
-            output += '\n'
+                output += self.to_grid()[i][j]
+            if i != self.height - 1:
+                output += '\n'
         return output
 
     def setup_from_grid(self, grid: str) -> None:
@@ -325,8 +337,11 @@ class GameBoard:
         self._player.take_turn()
 
         if self.turns % RACCOON_TURN_FREQUENCY == 0:  # PROVIDED, DO NOT CHANGE
-            pass  # TODO Task #4 replace pass with code here to make each
+            # TODO Task #4 replace pass with code here to make each
             #            raccoon take a turn
+            for char in self._characters:
+                if char is Raccoon:
+                    char.take_turn
 
         self.check_game_end()  # PROVIDED, DO NOT CHANGE
 
@@ -365,6 +380,18 @@ class GameBoard:
         True
         """
         # TODO Task #3 (you can leave calculating the score until Task #5)
+        num_of_raccoons_trapped = 0
+        for character in self._tiles:
+            if isinstance(character, Raccoon):
+                if not character.check_trapped():
+                    self.ended = False
+                    return None
+                num_of_raccoons_trapped += 1
+
+        self.ended = True
+        final_score = num_of_raccoons_trapped * 10 + self.adjacent_bin_score()
+
+        return final_score
 
     def adjacent_bin_score(self) -> int:
         """
@@ -403,6 +430,33 @@ class GameBoard:
         5
         """
         # TODO Task #5
+        checked = []
+        score = 1
+
+        for curr_character, curr_position in self._tiles.items():
+            checked.append(curr_character)
+            if not isinstance(curr_character, RecyclingBin):
+                continue
+
+            for character, position in self._tiles.items():
+                if character in checked:
+                    continue
+
+                if self.__isAdjacent(curr_position, position):
+                    score += 1
+
+        return score
+
+    def _isAdjacent(self, position: Tuple[int, int],
+                    other_position: Tuple[int, int]) -> bool:
+        """ Returns whether <other_position> is adjacent to <position>
+        """
+        for direction in get_shuffled_directions():
+            if (position[0] + direction[0] == other_position[0]) and \
+                    (position[1] + direction[1] == other_position[1]):
+                return True
+
+        return False
 
 
 class Character:
@@ -508,6 +562,13 @@ class RecyclingBin(Character):
         True
         >>> b.at(0, 1) == [rb]
         True
+        >>> rb2 = RecyclingBin(b, 1, 1)
+        >>> rb.move(RIGHT)
+        True
+        >>> b.at(1, 1) == [rb]
+        True
+        >>> b.at(2, 1) == [rb2]
+        True
         """
         # TODO Task #2
         new_x_coord = self.x
@@ -515,22 +576,27 @@ class RecyclingBin(Character):
         new_y_coord = self.y
         new_y_coord += direction[1]
 
-        next_character = self.b.at(new_x_coord, new_y_coord)
+        next_characters = self.board.at(new_x_coord, new_y_coord)
         # check within boundary
-        if self.b.on_board(new_x_coord, new_y_coord):
-            if not next_character:  # returns [], empty tile
+        if self.board.on_board(new_x_coord, new_y_coord):
+            if len(next_characters) == 0:  # returns [], empty tile
                 self.x = new_x_coord
                 self.y = new_y_coord
+                self.board.place_character(self)
+                return True
             # another recycling bin
-            elif next_character is RecyclingBin:
-                if next_character.move(
+            elif isinstance(next_characters[0], RecyclingBin):
+                if next_characters[0].move(
                         direction):  # the other recycling bin is movable
-                    next_character.move(direction)
+                    # next_characters[0].move(direction)
                     self.x = new_x_coord
                     self.y = new_y_coord
+                    self.board.place_character(self)
+                    return True
                 else:  # not movable
                     return False
             else:  # other characters
+                print('yes')
                 return False
         else:
             return False
@@ -631,27 +697,36 @@ class Player(TurnTaker):
         new_y_coord = self.y
         new_y_coord += direction[1]
 
-        next_character = self.b.at(new_x_coord, new_y_coord)
+        next_characters = self.board.at(new_x_coord, new_y_coord)
         # check out of bound first
-        if self.b.on_board(new_x_coord, new_y_coord):
+        if self.board.on_board(new_x_coord, new_y_coord):
+            # deal with garbage can and racoon first
+            for i in range(len(next_characters)):
+                if isinstance(next_characters[i], GarbageCan):
+                    # empty
+                    if len(next_characters) == 1:
+                        # unlocked
+                        if not next_characters[i].locked:
+                            next_characters[i].locked = True
+                        # locked
+                        else:
+                            return False
+                    # non-empty
+                    else:
+                        return False
             # deal with different objects in the way
-            if not next_character:  # unoccupied
+            if len(next_characters) == 0:  # unoccupied
                 self.x += direction[0]
                 self.y += direction[1]
+                self.board.place_character(self)
                 return True
-            elif next_character is RecyclingBin:  # recycling bin
-                if next_character.move(direction):  # movable
+            elif isinstance(next_characters[0], RecyclingBin):  # recycling bin
+                if next_characters[0].move(direction):  # movable
                     self.x += direction[0]
                     self.y += direction[1]
-                    next_character.move(direction)
+                    self.board.place_character(self)
                     return True
                 else:  # not movable
-                    return False
-            elif next_character is GarbageCan:
-                if not next_character.locked:  # empty unlocked garbage can
-                    next_character.locked = True
-                    return True
-                else:  # locked garbage can
                     return False
             else:  # racoon
                 return False
@@ -719,6 +794,25 @@ class Raccoon(TurnTaker):
         True
         """
         # TODO Task #3
+        directions = get_shuffled_directions()
+
+        for direction in directions:
+            if not self._isOccupiedTile(direction[0] + self.x, direction[1] + self.y):
+                return False
+
+        return True
+
+    def _isOccupiedTile(self, x: int, y: int) -> int:
+        """Returns True if the tile at the given position <x, y> is occupied by
+        something or is not on the board, otherwise returns False.
+        """
+        if self.board.on_board(x, y):
+            if len(self.board.at(x, y)) > 0:
+                return True
+            else:
+                return False
+        else:
+            return True
 
     def move(self, direction: Tuple[int, int]) -> bool:
         """Attempt to move this Raccoon in <direction> and return whether
@@ -770,26 +864,33 @@ class Raccoon(TurnTaker):
         new_y_coord = self.y
         new_y_coord += direction[1]
 
-        next_character = self.b.at(new_x_coord, new_y_coord)
+        if self.check_trapped():  # trapped raccoon can't move regardless of the direction
+            return False
+
+        next_characters = self.board.at(new_x_coord, new_y_coord)
         # check out of bound first
-        if self.b.on_board(new_x_coord, new_y_coord):
-            # deal with different objects in the way
-            if not next_character:  # unoccupied
+        if self.board.on_board(new_x_coord, new_y_coord): # clean this up
+            if len(next_characters) == 0:  # unoccupied
                 self.x += direction[0]
                 self.y += direction[1]
+                self.board.place_character(self)
                 return True
-            elif next_character is GarbageCan:
-                if : # occupied garbage can
-
-                else: # unoccupied garbage can
-                    if not next_character.locked:  # unlocked
-                        next_character.locked = True
-                        self.x += direction[0]
-                        self.y += direction[1]
-                        return True
-                    else:  # locked
-                        next_character.locked = False
-                        return True
+            elif len(next_characters) == 2:
+                # deal with raccoon inside garbage can
+                return False
+            elif isinstance(next_characters[0], GarbageCan):
+                # not locked
+                if not next_characters[0].locked:
+                    self.x += direction[0]
+                    self.y += direction[1]
+                    self.board.place_character(self)
+                    self.inside_can = True
+                    return True
+                # locked
+                else:
+                    next_characters[0].locked = False
+                    return True
+            # deal with different objects in the way
             else:  # recycling bin, player or another raccoon
                 return False
         else:  # out of boundary
@@ -817,6 +918,11 @@ class Raccoon(TurnTaker):
         (2, 1)
         """
         # TODO Task #4
+        if not self.inside_can:
+            direction = get_shuffled_directions()[0]
+            if self.move(direction):
+                self.move(direction)
+        print(self.x, self.y)
 
     def get_char(self) -> chr:
         """
@@ -877,6 +983,66 @@ class SmartRaccoon(Raccoon):
         True
         """
         # TODO Task #4
+        if not self.inside_can:
+            if self._get_nearest_garabge_can is None:
+                # behave like a normal raccoon
+                Raccoon.take_turn()
+            else:
+                # move towards the coordinate of garbage can
+                if self.x == self._get_nearest_garbage_can()[0]:
+                    if self._get_nearest_garbage_can()[1] == self.y:
+                        pass
+                    elif self._get_nearest_garbage_can()[1] > self.y:
+                        Raccoon.move(DOWN)
+                    else:
+                        Raccoon.move(UP)
+                else:
+                    if self._get_nearest_garbage_can()[0] == self.x:
+                        pass
+                    elif self._get_nearest_garbage_can()[0] > self.x:
+                        Raccoon.move(RIGHT)
+                    else:
+                        Raccoon.move(LEFT)
+
+    def _get_nearest_garbage_can(self) -> Tuple[int, int]:
+        """ Returns the coordinate of the nearest garbage can in sight out of the
+        four directions. Return the coord of the raccoon if there are no garbage
+        in sight can on all four directions.
+
+        >>> b = GameBoard(8, 1)
+        >>> s = SmartRaccoon(b, 4, 0)
+        >>> _ = GarbageCan(b, 3, 1, False)
+        >>> _ = GarbageCan(b, 0, 0, False)
+        >>> _ = GarbageCan(b, 7, 0, False)
+        >>> s._get_nearest_garbage_can()
+        (7, 0)
+        >>> s2 = Smart(Raccoon(b, 4, 2))
+        (4, 2)
+        >>> p = Player(b, 6, 0)
+        >>> s._get_nearest_garbage_can()
+        (7, 0)
+        """
+        # get the largest possible distance to compare
+        shortest = max(self.board.width,
+                       self.board.height)
+        output = (self.x, self.y)
+        for direction in DIRECTIONS:
+            x_dir = direction[0]
+            y_dir = direction[1]
+            x_final = self.x  # self.x and self.y never changes
+            y_final = self.y
+            while self.board.on_board(x_final, y_final):
+                x_final += x_dir
+                y_final += y_dir
+                if len(self.board.at(x_final, y_final)) == 2 or \
+                        self.board.at(x_final, y_final)[0] is Raccoon or \
+                        self.board.at(x_final, y_final)[0] is RecyclingBin:
+                    break
+                elif self.board.at(x_final, y_final)[0] is GarbageCan:
+                    distance = (x_final - self.x) + (y_final - self.y)
+                    shortest = min(distance, shortest)
+                    output = (x_final, y_final)
+        return output
 
     def get_char(self) -> chr:
         """

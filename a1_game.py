@@ -25,7 +25,6 @@ from random import random, shuffle
 from typing import Dict, List, Optional
 
 import pygame
-# from csc148.assignments.a1 import a1
 import a1
 
 # Feel free to modify any of these constant values.

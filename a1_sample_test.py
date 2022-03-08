@@ -22,7 +22,9 @@ any changes, are expressly prohibited.
 All of the files in this directory and all subdirectories are:
 Copyright (c) University of Toronto
 """
-from csc148.assignments.a1.a1 import *
+from datetime import date
+from io import StringIO
+from a1 import *
 
 # A string representing a simple 4 by 4 game board.
 # We use this in one of the tests below. You can use it in your own testing, but
@@ -150,7 +152,7 @@ def test_simple_raccoon_take_turn() -> None:
 
 def test_simple_smartraccoon_take_turn() -> None:
     """Test SmartRaccoon.take_turn on docstring example."""
-    b = GameBoard(8, 1)
+    b = GameBoard(8, 2)
     s = SmartRaccoon(b, 4, 0)
     GarbageCan(b, 3, 1, False)
     GarbageCan(b, 0, 0, False)
