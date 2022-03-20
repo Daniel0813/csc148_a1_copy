@@ -1128,7 +1128,6 @@ class SmartRaccoon(Raccoon):
         #     self._helper(x_dir, y_dir, shortest, output)
         # return output[0], output[1]
 
-
     # def _helper(self, x_dir: int, y_dir: int,
     #             shortest: int, output: List[int]) -> None:
     #     """Helper method for _get_nearest_garbage_can()
